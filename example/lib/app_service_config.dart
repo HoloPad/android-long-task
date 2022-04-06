@@ -22,4 +22,10 @@ class AppServiceData extends ServiceData {
 
   @override
   String get notificationDescription => 'progress -> $progress';
+
+  @override
+  List<Button> get buttons => [
+    Button("idCancel","Cancel"),
+    Button("idOk","Ok")
+  ];
 }

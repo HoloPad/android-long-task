@@ -11,6 +11,22 @@ abstract class ServiceData {
   String get notificationTitle;
 
   String get notificationDescription;
+
+  List<Button> get buttons;
+}
+
+class Button {
+  String id;
+  String text;
+
+  Button(this.id, this.text);
+
+  String toJson(){
+    return jsonEncode({
+      "id":id,
+      "text":text
+    });
+  }
 }
 
 /// this class is only visible for internal usage in package
@@ -23,6 +39,7 @@ class ServiceDataWrapper {
     Map<String, dynamic> json = jsonDecode(_serviceData.toJson());
     json["notif_title"] = _serviceData.notificationTitle;
     json["notif_description"] = _serviceData.notificationDescription;
+    json["notif_buttons"] = _serviceData.buttons;
     return jsonEncode(json);
   }
 }

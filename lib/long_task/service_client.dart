@@ -9,10 +9,13 @@ import 'package:flutter/services.dart';
 /// your application
 class ServiceClient {
   static const _CHANNEL_NAME = "APP_SERVICE_CHANNEL_NAME";
+  static const _CHANNEL_NAME_IN = "APP_SERVICE_CHANNEL_NAME_OUT";
   static const _SET_SERVICE_DATA = 'SET_SERVICE_DATA';
   static const _STOP_SERVICE = 'stop_service';
   static const _END_EXECUTION = 'END_EXECUTION';
-  static var channel = MethodChannel(_CHANNEL_NAME);
+  static const _BUTTON_PRESSED_ACTION = "onButtonPressed";
+  static var channel_out = MethodChannel(_CHANNEL_NAME);
+  static var channel_in = MethodChannel(_CHANNEL_NAME_IN);
 
   /// updates shared [ServiceData] and which you can listen for on application side using [AppClient.updates] stream
   ///
@@ -21,16 +24,27 @@ class ServiceClient {
   /// using this method.
   static Future update(ServiceData data) async {
     var dataWrapper = ServiceDataWrapper(data);
-    await channel.invokeMethod(_SET_SERVICE_DATA, dataWrapper.toJson());
+    await channel_out.invokeMethod(_SET_SERVICE_DATA, dataWrapper.toJson());
   }
 
   /// set the code you want to run
   /// when foreground-service is ordered to start from application side using `AppClient.execute(serviceData)`
   /// you receive the [ServiceData] passed in that method as [initialData] in your callback
   static setExecutionCallback(Future action(Map<String, dynamic> initialData)) {
-    channel.setMethodCallHandler((call) async {
+    channel_out.setMethodCallHandler((call) async {
       var json = jsonDecode(call.arguments as String);
       await action(json);
+    });
+  }
+
+  /// set the code you want to run
+  /// when a button in the notification is clicked
+  /// you receive the buttonId[String] of the clicked button in your callback
+  static setButtonClickCallback(Function(String) callback) {
+    channel_in.setMethodCallHandler((call) async {
+      if (call.method == _BUTTON_PRESSED_ACTION) {
+        callback(call.arguments);
+      }
     });
   }
 
@@ -43,10 +57,10 @@ class ServiceClient {
   /// object as a result to application side
   static Future<void> endExecution(ServiceData data) async {
     var dataWrapper = ServiceDataWrapper(data);
-    return channel.invokeMethod(_END_EXECUTION, dataWrapper.toJson());
+    return channel_out.invokeMethod(_END_EXECUTION, dataWrapper.toJson());
   }
 
   /// stops service immediatly
   static Future<String?> stopService() =>
-      channel.invokeMethod<String?>(_STOP_SERVICE);
+      channel_out.invokeMethod<String?>(_STOP_SERVICE);
 }
