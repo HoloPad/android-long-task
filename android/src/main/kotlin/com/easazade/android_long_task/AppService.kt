@@ -10,14 +10,11 @@ import android.content.IntentFilter
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import android.widget.Button
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.easazade.android_long_task.ui_components.NotificationButton
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.view.FlutterMain
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,9 +31,6 @@ class AppService : Service() {
     private val BUTTON_PRESSED_ACTION = "onButtonPressed"
     private val ACTION_DATA_NAME = "data"
 
-    private var title: String? = null
-    private var description: String? = null
-    private var buttons: MutableList<NotificationButton> = mutableListOf()
     private var clickCallback: ((String) -> Unit)? = null;
 
     // A broadcast receiver that handles intents that occur within the foreground service.
@@ -72,25 +66,20 @@ class AppService : Service() {
     }
 
     fun runDartFunction() {
-        //    channel = MethodChannel(messenger, channel_name)
-//    channel?.invokeMethod(dartFunctionName, "arguments from service")
-        // FlutterMain.startInitialization(this)
-        // FlutterMain.ensureInitializationComplete(this, emptyArray<String>())
-
         engine = FlutterEngine(applicationContext)
 
         val entrypoint = DartEntrypoint("lib/main.dart", "serviceMain")
-
         engine!!.dartExecutor.executeDartEntrypoint(entrypoint)
+
         channel = MethodChannel(engine!!.dartExecutor.binaryMessenger, channel_name)
         channel!!.setMethodCallHandler { call, result ->
+
             if (call.method == "stop_service") {
                 stopDartService()
                 result.success("stopped service")
             } else if (call.method == "SET_SERVICE_DATA") {
                 try {
                     val jObject = JSONObject(call.arguments as String)
-                    Log.d("DART/NATIVE", "update json data from service client -> $jObject")
                     setData(jObject)
                     result.success("set data on service")
                 } catch (e: Throwable) {
@@ -116,11 +105,13 @@ class AppService : Service() {
                 }
             }
         }
+
         if (serviceData != null) {
             channel!!.invokeMethod("runDartCode", serviceData.toString())
         } else {
             Log.e("DART/NATIVE", "please set ServiceData before calling execute")
         }
+
     }
 
     fun stopDartService() {
@@ -154,6 +145,40 @@ class AppService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = binder
 
+    fun setData(data: JSONObject?) {
+        data?.let {
+            serviceData = it
+            updateNotification()
+            observer?.invoke(it)
+        }
+    }
+
+    private fun endExecution(data: JSONObject?) {
+        data?.let {
+            serviceData = it
+            executionResultListener?.invoke(it)
+        }
+    }
+
+
+    private fun buildButtonCompatActions(buttons: MutableList<NotificationButton>): MutableList<NotificationCompat.Action> {
+        val list: MutableList<NotificationCompat.Action> = mutableListOf()
+
+        for (i in 0 until buttons.size) {
+            val buttonId = buttons.elementAt(i).id
+            val buttonText = buttons.elementAt(i).text
+
+            val bIntent = Intent(BUTTON_PRESSED_ACTION).apply {
+                putExtra(ACTION_DATA_NAME, buttonId)
+            }
+            val bPendingIntent =
+                PendingIntent.getBroadcast(this, i + 1, bIntent, PendingIntent.FLAG_IMMUTABLE)
+            val button = NotificationCompat.Action.Builder(0, buttonText, bPendingIntent).build()
+            list.add(button)
+        }
+        return list
+    }
+
     private fun buttonsFromJsonArray(array: JSONArray): MutableList<NotificationButton> {
         val list: MutableList<NotificationButton> = mutableListOf()
 
@@ -167,75 +192,47 @@ class AppService : Service() {
         return list
     }
 
-    fun setData(data: JSONObject?) {
-        // Log.d("DART/NATIVE", "setting data on service")
-        //Log.d("DART/NATIVE", data?.toString() ?: "json data is null")
-        serviceData = data
-        data?.let {
-            observer?.invoke(it)
-            if (it.has("notif_title") && it.has("notif_description")) {
-                this.title = it.getString("notif_title")
-                this.description = it.getString("notif_description")
-                if (it.has("notif_buttons")) {
-                    this.buttons = buttonsFromJsonArray(it.getJSONArray("notif_buttons"))
-                }
-                updateNotification()
-            }
-        }
-    }
+    private fun updateNotification() {
+        serviceData?.let {
+            val hasDescriptionAndTitle: Boolean =
+                it.has("notif_title") && !it.isNull("notif_title")
+                        && it.has("notif_description") && !it.isNull("notif_description")
 
-    private fun endExecution(data: JSONObject?) {
-        //Log.d("DART/NATIVE", "ending execution of method call")
-        //Log.d("DART/NATIVE", data?.toString() ?: "result data is null")
-        serviceData = data
-        data?.let {
-            /*
-          if (it.has("notif_title") && it.has("notif_description")) {
+            if (!hasDescriptionAndTitle)
+                return
+
             val title = it.getString("notif_title")
             val description = it.getString("notif_description")
-            updateNotification(title, description)
-          }*/
-            executionResultListener?.invoke(it)
-        }
-    }
+            val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentText(description)
+                .setContentTitle(title)
+                .setSmallIcon(getMipMapIconId())
 
-    private fun buildButtonCompatActions(): MutableList<NotificationCompat.Action> {
-        val list: MutableList<NotificationCompat.Action> = mutableListOf()
-
-        for (i in 0 until this.buttons.size) {
-            val buttonId = this.buttons.elementAt(i).id
-            val buttonText = this.buttons.elementAt(i).text
-
-            val bIntent = Intent(BUTTON_PRESSED_ACTION).apply {
-                putExtra(ACTION_DATA_NAME, buttonId)
+            if (it.has("notif_buttons") && !it.isNull("notif_buttons")) {
+                val buttons = this.buttonsFromJsonArray(it.getJSONArray("notif_buttons"))
+                val actions = this.buildButtonCompatActions(buttons)
+                for (action in actions) {
+                    builder.addAction(action)
+                }
             }
-            val bPendingIntent =
-                PendingIntent.getBroadcast(this, i + 1, bIntent, PendingIntent.FLAG_IMMUTABLE)
-            val button = NotificationCompat.Action.Builder(0, buttonText, bPendingIntent).build()
-            list.add(button)
-        }
-        return list
-    }
 
-    private fun updateNotification() {
-        //Log.d("DART/NATIVE", "updating notification => $title | $description")
-//    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        if (this.title == null || this.description == null)
-            return
+            if (it.has("notif_progress") && !it.isNull("notif_progress")) {
+                var jsonObj =
+                    it.optJSONObject("notif_progress") ?: JSONObject(it.getString("notif_progress"))
+                if (jsonObj.has("progress") && !jsonObj.isNull("progress") &&
+                    jsonObj.has("maximum") && !jsonObj.isNull("maximum") &&
+                    jsonObj.has("indeterminate") && !jsonObj.isNull("indeterminate")
+                ) {
+                    val progress = jsonObj.getInt("progress")
+                    val maximum = jsonObj.getInt("maximum")
+                    val indeterminate = jsonObj.getBoolean("indeterminate")
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentText(description)
-            .setContentTitle(title)
-            .setSmallIcon(getMipMapIconId())
-
-        if (this.buttons.isNotEmpty()) {
-            for (button in buildButtonCompatActions()) {
-                builder.addAction(button)
+                    builder.setProgress(maximum, progress, indeterminate)
+                }
             }
-        }
 
-        startForeground(notifId, builder.build())
-//    }
+            startForeground(notifId, builder.build())
+        }
     }
 
     private fun getMipMapIconId(): Int =

@@ -18,12 +18,10 @@ class AndroidLongTaskPlugin : FlutterPlugin, ActivityAwareAdapter() {
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-    Log.d("DART/NATIVE", "onDetachedFromEngine")
     androidLongTask?.channel?.setMethodCallHandler(null)
   }
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-    Log.d("DART/NATIVE", "onAttachedToActivity")
     activity = binding.activity as FlutterActivity
     androidLongTask = AndroidLongTask(activity!!, binaryMessenger!!)
   }

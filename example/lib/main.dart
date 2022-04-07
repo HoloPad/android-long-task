@@ -1,30 +1,28 @@
 // ignore_for_file: avoid_print
 
 import 'package:android_long_task/android_long_task.dart';
+import 'package:android_long_task/long_task/notification_components/button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'app_service_config.dart';
 
 @pragma('vm:entry-point')
 Future<void> serviceMain() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   ServiceClient.setExecutionCallback((initialData) async {
-    var serviceData = AppServiceData.fromJson(initialData);
-    for (var i = 0; i < 50; i++) {
+    var notificationData = NotificationComponents.fromJson(initialData);
+    for (var i = 0; i < 100; i++) {
       print('dart -> $i');
-      serviceData.progress = i;
-      await ServiceClient.update(serviceData);
+      notificationData.notificationDescription = i.toString();
+      notificationData.barProgress = i;
+      notificationData.userData?['progress'] = i;
+      await ServiceClient.update(notificationData);
       await Future.delayed(const Duration(seconds: 1));
     }
-    await ServiceClient.endExecution(serviceData);
+    await ServiceClient.endExecution(notificationData);
     var result = await ServiceClient.stopService();
     print(result);
   });
 }
-
-AppServiceData data = AppServiceData();
 
 void main() {
   runApp(const MyApp());
@@ -57,19 +55,32 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String _result = 'result';
   String _status = 'status';
+  String _buttonPressed = "No button pressed";
+  AppClient client = new AppClient("my_title", "my_description");
 
   @override
   void initState() {
-    AppClient.updates.listen((json) {
+    //Add here the elements that you want to show
+    client.addButton(Button("myId", "myText"));
+    client.initProgressBar(0, 100, false);
+
+    client.rawUpdates.listen((json) {
       if (json != null) {
-        var serviceData = AppServiceData.fromJson(json);
+        //print("RAW DATA " + json.toString());
+      }
+    });
+    client.userDataUpdates.listen((json) {
+      if (json != null) {
         setState(() {
-          _status = serviceData.notificationDescription;
+          _status = json.toString();
         });
       }
     });
-    AppClient.buttonUpdates.listen((event) {
-      print("CLICKED "+event);
+    client.buttonUpdates.listen((buttonId) {
+      print("BUTTON PRESSED " + buttonId);
+      setState(() {
+        _buttonPressed = "Pressed " + buttonId;
+      });
     });
     super.initState();
   }
@@ -89,14 +100,19 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(_result,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headline6),
+            const SizedBox(height: 6),
+            Text(_buttonPressed),
             const SizedBox(height: 60),
             ElevatedButton(
               onPressed: () async {
                 try {
-                  var result = await AppClient.execute(data);
-                  var resultData = AppServiceData.fromJson(result);
-                  setState(() => _result =
-                      'finished executing service process ;) -> ${resultData.progress}');
+                  client.userData = {"progress": 0};
+                  var result = await client.execute();
+                  if (result != null) {
+                    var resultData = result['progress'];
+                    setState(
+                        () => _result = 'finished ' + resultData.toString());
+                  }
                 } on PlatformException catch (e, stacktrace) {
                   print(e);
                   print(stacktrace);
@@ -107,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  var result = await AppClient.getData();
+                  var result = await client.getRawData();
                   setState(() => _result = result.toString());
                 } on PlatformException catch (e, stacktrace) {
                   print(e);
@@ -119,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  await AppClient.stopService();
+                  await client.stopService();
                   setState(() => _result = 'stop service');
                 } on PlatformException catch (e, stacktrace) {
                   print(e);

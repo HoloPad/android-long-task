@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:android_long_task/long_task/service_data.dart';
+import 'notification_components.dart';
 import 'package:flutter/services.dart';
 
 /// [ServiceClient] is the interface you can use to controll your foreground-service
@@ -14,21 +14,21 @@ class ServiceClient {
   static const _END_EXECUTION = 'END_EXECUTION';
   static var channel = MethodChannel(_CHANNEL_NAME);
 
-  /// updates shared [ServiceData] and which you can listen for on application side using [AppClient.updates] stream
+  /// updates shared [NotificationComponents] and which you can listen for on application side using [AppClient.updates] stream
   ///
   /// use this method to notify the application side on the state of the process that is running in foreground-service
   /// for example if you're downloading a file in you're foreground-service you may want to update the download progress
   /// using this method.
-  static Future update(ServiceData data) async {
-    var dataWrapper = ServiceDataWrapper(data);
-    await channel.invokeMethod(_SET_SERVICE_DATA, dataWrapper.toJson());
+  static Future update(NotificationComponents data) async {
+    await channel.invokeMethod(_SET_SERVICE_DATA, data.toJson());
   }
 
   /// set the code you want to run
   /// when foreground-service is ordered to start from application side using `AppClient.execute(serviceData)`
-  /// you receive the [ServiceData] passed in that method as [initialData] in your callback
+  /// you receive the [NotificationComponents] passed in that method as [initialData] in your callback
   static setExecutionCallback(Future action(Map<String, dynamic> initialData)) {
     channel.setMethodCallHandler((call) async {
+      print("DART RECV "+call.method+" FROM "+_CHANNEL_NAME);
       var json = jsonDecode(call.arguments as String);
       await action(json);
     });
@@ -39,11 +39,10 @@ class ServiceClient {
   /// called from application side.
   ///
   /// in other words that `AppClient.execute()` starts the foreground-service and with
-  /// `ServiceClient.endExcution(serviceData)` we can end the execution of foreground-service and also return a [ServiceData]
+  /// `ServiceClient.endExcution(serviceData)` we can end the execution of foreground-service and also return a [NotificationComponents]
   /// object as a result to application side
-  static Future<void> endExecution(ServiceData data) async {
-    var dataWrapper = ServiceDataWrapper(data);
-    return channel.invokeMethod(_END_EXECUTION, dataWrapper.toJson());
+  static Future<void> endExecution(NotificationComponents data) async {
+    return channel.invokeMethod(_END_EXECUTION, data.toJson());
   }
 
   /// stops service immediatly
