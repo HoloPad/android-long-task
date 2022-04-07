@@ -6,12 +6,9 @@ import 'package:flutter/services.dart';
 
 import 'notification_components/button.dart';
 
-/// This is the interface you can use everywhere in your application to communicate with foreground-service from
+/// This is the class that you will use in  your application to communicate with foreground-service from
 /// application side. like start the service, stop it, listen for [NotificationComponents] updates etc.
-///
-/// note that you cannot use class inside `serviceMain` function inside `lib/main.dart` since that is the function that runs
-/// inside foreground-service. to controll the foreground-service from service side meaning inside `serviceMain`
-/// function use [ServiceClient] class
+
 class AppClient {
   final _CHANNEL_NAME = 'FSE_APP_CHANNEL_NAME';
   final _START_SERVICE = 'START_SERVICE';

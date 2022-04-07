@@ -5,22 +5,34 @@ import 'package:android_long_task/long_task/notification_components/button.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+//this entire function runs in your ForegroundService
 @pragma('vm:entry-point')
 Future<void> serviceMain() async {
+  //make sure you add this
   WidgetsFlutterBinding.ensureInitialized();
+
   ServiceClient.setExecutionCallback((initialData) async {
-    var notificationData = NotificationComponents.fromJson(initialData);
+
+    //{initialData} is the data exchanged between the foreground app and your app
+
     for (var i = 0; i < 100; i++) {
       print('dart -> $i');
-      notificationData.notificationDescription = i.toString();
-      notificationData.barProgress = i;
-      notificationData.userData?['progress'] = i;
-      await ServiceClient.update(notificationData);
+
+      //Here you can change the notification texts, progress bar, ecc...
+      initialData.notificationDescription = i.toString();
+      initialData.barProgress = i;
+
+      //Is it possible to exchange json datas between the foreground and the app
+      //This json data can be put inside {userData}
+      initialData.userData?['progress'] = i;
+
+      //Send an update from the foreground to the app
+      await ServiceClient.update(initialData);
       await Future.delayed(const Duration(seconds: 1));
     }
-    await ServiceClient.endExecution(notificationData);
-    var result = await ServiceClient.stopService();
-    print(result);
+
+    await ServiceClient.endExecution(initialData);
+    await ServiceClient.stopService();
   });
 }
 
@@ -56,19 +68,22 @@ class _MyHomePageState extends State<MyHomePage> {
   String _result = 'result';
   String _status = 'status';
   String _buttonPressed = "No button pressed";
+
+  //Create an App client instance, with the notification title and description
+  //You can edit this fields later
   AppClient client = new AppClient("my_title", "my_description");
 
   @override
   void initState() {
     //Add here the elements that you want to show
-    client.addButton(Button("myId", "myText"));
+    //Buttons
+    client.addButton(Button("myId1", "myText1"));
+    client.addButton(Button("myId2", "myText2"));
+
+    //If need you can init a progressBar
     client.initProgressBar(0, 100, false);
 
-    client.rawUpdates.listen((json) {
-      if (json != null) {
-        //print("RAW DATA " + json.toString());
-      }
-    });
+    //Listen for the {userData} updates
     client.userDataUpdates.listen((json) {
       if (json != null) {
         setState(() {
@@ -76,12 +91,15 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     });
+
+    //Listen for button clicks
     client.buttonUpdates.listen((buttonId) {
       print("BUTTON PRESSED " + buttonId);
       setState(() {
         _buttonPressed = "Pressed " + buttonId;
       });
     });
+
     super.initState();
   }
 
@@ -106,8 +124,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
+                  //You can set userData before the foreground task execution
                   client.userData = {"progress": 0};
                   var result = await client.execute();
+                  //Returns the userData processed by thee foreground task
+
                   if (result != null) {
                     var resultData = result['progress'];
                     setState(
@@ -135,6 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
+                  //Stop the foreground task
                   await client.stopService();
                   setState(() => _result = 'stop service');
                 } on PlatformException catch (e, stacktrace) {

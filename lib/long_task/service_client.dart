@@ -26,11 +26,12 @@ class ServiceClient {
   /// set the code you want to run
   /// when foreground-service is ordered to start from application side using `AppClient.execute(serviceData)`
   /// you receive the [NotificationComponents] passed in that method as [initialData] in your callback
-  static setExecutionCallback(Future action(Map<String, dynamic> initialData)) {
+  static setExecutionCallback(Future action(NotificationComponents initialData)) {
     channel.setMethodCallHandler((call) async {
       print("DART RECV "+call.method+" FROM "+_CHANNEL_NAME);
       var json = jsonDecode(call.arguments as String);
-      await action(json);
+      var notificationComponents = NotificationComponents.fromJson(json);
+      await action(notificationComponents);
     });
   }
 

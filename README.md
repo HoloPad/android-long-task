@@ -43,73 +43,43 @@ Foreground Service has a notification icon. this icon must be named `ic_launcher
 if you're using `flutter_launcher_icons` to generate your app launcher icons, you don't need to do any changes
 
 # install:
-just add plugin to your pubspec.yaml
+This plugin is not present between the flutter packages
 there is no need to for adding native code or making changes in your `AndroidManifest.xml` file
 
-```yaml
-dependencies:
-  android_long_task: ^last_version
-```
-
-## Step 1: create Service shared data
-create a service data class to specify the data that is shared between your app dart-code and your service dart-code. in this class you will add the shared data you need and also specify the ForegroundService notification's title and description
-
-```dart
-import  'dart:convert';
-import  'package:android_long_task/android_long_task.dart';
-
-class SharedUploadData extends ServiceData {
-
-    int progress = 0;
-
-    @override
-    String get notificationTitle => 'uploading';
-
-    @override
-    String get notificationDescription => 'progress -> $progress';
-
-    String toJson() {
-       var map = {
-           'progress': progress,
-       };
-       return jsonEncode(map);
-    }
-
-    static AppServiceData fromJson(Map<String, dynamic> json) {
-       return AppServiceData()..progress = json['progress'] as int;
-    }
-
-}
-```
-
-## Step 2 : create serviceMain
+## Step 1 : create serviceMain
 
 create a `serviceMain()` function in your `lib/main.dart` file. this is where you define the dart code that is going to run in your ForegroundService. make sure to annotate it with `@pragma('vm:entry-point')` otherwise it won't run in `release mode`
 
 ```dart
 //this entire function runs in your ForegroundService
 @pragma('vm:entry-point')
-serviceMain() async {
+Future<void> serviceMain() async {
   //make sure you add this
   WidgetsFlutterBinding.ensureInitialized();
-  //if your use dependency injection you initialize them here
-  //what ever dart objects you created in your app main function is not  accessible here
-  
-  //set a callback and define the code you want to execute when your  ForegroundService runs
+
   ServiceClient.setExecutionCallback((initialData) async {
-     //you set initialData when you are calling AppClient.execute()
-     //from your flutter application code and receive it here
-     var serviceData =  AppServiceData.fromJson(initialData);
-     //runs your code here
-     serviceData.progress = 20;
-     await ServiceClient.update(serviceData);
-     //run some more code
-     serviceData.progress = 100;
-     await ServiceClient.endExecution(serviceData);
-     await ServiceClient.stopService();     
 
+    //{initialData} is the data exchanged between the foreground app and your app
+
+    for (var i = 0; i < 100; i++) {
+      print('dart -> $i');
+
+      //Here you can change the notification texts, progress bar, ecc...
+      initialData.notificationDescription = i.toString();
+      initialData.barProgress = i;
+
+      //Is it possible to exchange json datas between the foreground and the app
+      //This json data can be put inside {userData}
+      initialData.userData?['progress'] = i;
+
+      //Send an update from the foreground to the app
+      await ServiceClient.update(initialData);
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    await ServiceClient.endExecution(initialData);
+    await ServiceClient.stopService();
   });
-
 }
 ```
 
@@ -127,34 +97,64 @@ service client is basically an interface to your ForegroundService. it providers
 
 **Note :** `ServiceClient` should only be used in the code that runs in `serviceMain()` function
 
-## Step 3 : execute
+## Step 2: Create the service
 
-now you can call `AppClient.execute()` from your app dart-code to start ForegroundService and run the `serviceMain()` function in it.
+Now you create an instance of the service and you can sets the elements to show in the notification widget
 
 ```dart
-import  'package:android_long_task/android_long_task.dart';
+//Create an App client instance, with the notification title and description
+//You can edit this fields later
+AppClient client = new AppClient("my_title", "my_description");
 
-//you can listen for shared data updates
-AppClient.updates.listen((json) {
-   var serviceDataUpdate =  AppServiceData.fromJson(json);
-   //your code
-});
+//Add here the elements that you want to show
+//Buttons
+client.addButton(Button("myId1", "myText1"));
+client.addButton(Button("myId2", "myText2"));
 
-
-var resultJson = await AppClient.execute(initialSharedData);
-var serviceDataResult = AppServiceData.fromJson(resultJson); 
+//If need you can init a progressBar
+client.initProgressBar(0, 100, false);
 
 ```
-- `AppClient` is the interface that allows you to communicate with ForegroundService from application side dart-code. `AppClient` methods must only be called from the application side
-- `AppClient.execute()` has a returned type of your shared-data in json which is the result of your background task and will be set from `serviceMain` by calling `ServiceClient.endExecution(serviceData)` and if you don't call it at all `AppClient.execute()` in above code will be finished and won't return anything  
-- you could also use `AppClient.getData()` to get the last data. if the ForegroundService is running it will return the last changes. if ForegroundService is stopped the initial data will be returned. if you have not called `AppClient.execute()` at all `null` will be returned
+
+Now you can set the listener to get system updates
+
+```dart
+//Listen for the {userData} updates
+client.userDataUpdates.listen((json) {
+    if (json != null) {
+        setState(() {
+            _status = json.toString();
+        });
+    }
+});
+
+//Listen for button clicks
+client.buttonUpdates.listen((buttonId) {
+    print("BUTTON PRESSED " + buttonId);
+    setState(() {
+        _buttonPressed = "Pressed " + buttonId;
+    });
+});
+```
 
 
 
-# ToDo list
+## Step 2: execute and stop
 
-* add options to customize ForegroundService Notification more
-* add ability to start ForegroundService when Device Restarts/Turns On
+now you can call `client.execute()` from your app dart-code to start ForegroundService and run the `serviceMain()` function in it.
+
+```dart
+//You can set userData before the foreground task execution
+client.userData = {"progress": 0};
+var result = await client.execute();
+//Returns the userData processed by thee foreground task
+//
+//
+//
+// To stop the foreground service, you can call
+await client.stopService();
+```
+
 
 
 
