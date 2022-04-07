@@ -28,7 +28,6 @@ class ServiceClient {
   /// you receive the [NotificationComponents] passed in that method as [initialData] in your callback
   static setExecutionCallback(Future action(NotificationComponents initialData)) {
     channel.setMethodCallHandler((call) async {
-      print("DART RECV "+call.method+" FROM "+_CHANNEL_NAME);
       var json = jsonDecode(call.arguments as String);
       var notificationComponents = NotificationComponents.fromJson(json);
       await action(notificationComponents);
