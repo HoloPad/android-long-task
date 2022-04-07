@@ -18,9 +18,13 @@ class AppClient {
   static const _STOP_SERVICE = 'STOP_SERVICE';
   static const _RUN_DART_FUNCTION = 'RUN_DART_FUNCTION';
   static const _NOTIFY_UPDATE = 'NOTIFY_UPDATE';
+  static const _BUTTON_CLICK = 'BUTTON_CLICK';
   // ignore: close_sinks
   static final _serviceDataStreamController =
       StreamController<Map<String, dynamic>?>.broadcast();
+
+  static final _buttonsEventStream = StreamController<String>.broadcast();
+
   static final MethodChannel channel = MethodChannel(_CHANNEL_NAME)
     ..setMethodCallHandler((call) async {
       if (call.method == _NOTIFY_UPDATE) {
@@ -31,6 +35,10 @@ class AppClient {
           Map<String, dynamic> json = jsonDecode(stringData);
           _serviceDataStreamController.sink.add(json);
         }
+      }
+      else if (call.method == _BUTTON_CLICK){
+        final clickedId = call.arguments as String;
+        _buttonsEventStream.sink.add(clickedId);
       }
     });
 
@@ -69,5 +77,18 @@ class AppClient {
       print(stacktrace);
     }
     return _serviceDataStreamController.stream;
+  }
+
+  /// set the code you want to run
+  /// when a button in the notification is clicked
+  /// you receive the buttonId[String] of the clicked button in your callback
+  static Stream<String> get buttonUpdates {
+    /*
+    channel_in.setMethodCallHandler((call) async {
+      if (call.method == _BUTTON_PRESSED_ACTION) {
+        callback(call.arguments);
+      }
+    });*/
+    return _buttonsEventStream.stream;
   }
 }

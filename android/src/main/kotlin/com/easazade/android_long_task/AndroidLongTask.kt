@@ -27,6 +27,7 @@ class AndroidLongTask(private val activity: FlutterActivity, private val binaryM
   private val SET_SERVICE_DATA = "SET_SERVICE_DATA"
   private val GET_SERVICE_DATA = "GET_SERVICE_DATA"
   private val NOTIFY_UPDATE = "NOTIFY_UPDATE"
+  private val  BUTTON_CLICK = "BUTTON_CLICK";
   lateinit var channel: MethodChannel
   private lateinit var serviceIntent: Intent
   var appService: AppService? = null
@@ -137,6 +138,9 @@ class AndroidLongTask(private val activity: FlutterActivity, private val binaryM
         onServiceStarted?.invoke()
         appService?.setServiceDataObserver { jsonObject ->
           channel.invokeMethod(NOTIFY_UPDATE, jsonObject.toString())
+        }
+        appService?.setOnClickCallback { buttonId ->
+          channel.invokeMethod(BUTTON_CLICK, buttonId)
         }
       }
 

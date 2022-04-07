@@ -10,10 +10,6 @@ import 'app_service_config.dart';
 Future<void> serviceMain() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  ServiceClient.setButtonClickCallback((initialData) async {
-    print("BUTTON ID PRESSED "+initialData);
-  });
-
   ServiceClient.setExecutionCallback((initialData) async {
     var serviceData = AppServiceData.fromJson(initialData);
     for (var i = 0; i < 50; i++) {
@@ -71,6 +67,9 @@ class _MyHomePageState extends State<MyHomePage> {
           _status = serviceData.notificationDescription;
         });
       }
+    });
+    AppClient.buttonUpdates.listen((event) {
+      print("CLICKED "+event);
     });
     super.initState();
   }

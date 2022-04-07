@@ -37,9 +37,7 @@ class AppService : Service() {
     private var title: String? = null
     private var description: String? = null
     private var buttons: MutableList<NotificationButton> = mutableListOf()
-    private var channel_name_out = "APP_SERVICE_CHANNEL_NAME_OUT"
-    private var channel_out: MethodChannel? = null;
-
+    private var clickCallback: ((String) -> Unit)? = null;
 
     // A broadcast receiver that handles intents that occur within the foreground service.
     private var broadcastReceiver = object : BroadcastReceiver() {
@@ -47,7 +45,14 @@ class AppService : Service() {
             try {
                 val action = intent?.action ?: return
                 val data = intent.getStringExtra(ACTION_DATA_NAME)
-                channel_out?.invokeMethod(action, data)
+                data?.let { resultData ->
+                    if (action == BUTTON_PRESSED_ACTION) {
+                        clickCallback?.let {
+                            it(resultData)
+                        }
+                    }
+                }
+
             } catch (e: Exception) {
                 Log.e(TAG, "invokeMethod", e)
             }
@@ -69,15 +74,14 @@ class AppService : Service() {
     fun runDartFunction() {
         //    channel = MethodChannel(messenger, channel_name)
 //    channel?.invokeMethod(dartFunctionName, "arguments from service")
-       // FlutterMain.startInitialization(this)
-       // FlutterMain.ensureInitializationComplete(this, emptyArray<String>())
+        // FlutterMain.startInitialization(this)
+        // FlutterMain.ensureInitializationComplete(this, emptyArray<String>())
 
         engine = FlutterEngine(applicationContext)
 
         val entrypoint = DartEntrypoint("lib/main.dart", "serviceMain")
 
         engine!!.dartExecutor.executeDartEntrypoint(entrypoint)
-        channel_out = MethodChannel(engine!!.dartExecutor.binaryMessenger, channel_name_out)
         channel = MethodChannel(engine!!.dartExecutor.binaryMessenger, channel_name)
         channel!!.setMethodCallHandler { call, result ->
             if (call.method == "stop_service") {
@@ -240,5 +244,9 @@ class AppService : Service() {
             "mipmap",
             this.applicationContext.packageName
         )
+
+    fun setOnClickCallback(callback: ((String) -> Unit)) {
+        this.clickCallback = callback
+    }
 
 }
