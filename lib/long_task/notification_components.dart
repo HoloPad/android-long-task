@@ -11,7 +11,7 @@ class NotificationComponents {
   String notificationTitle;
   String notificationDescription;
   List<Button> _buttons = List.empty(growable: true);
-  Map<String, dynamic>? userData;
+  Map<String, dynamic> userData = Map();
 
   NotificationComponents(this.notificationTitle, this.notificationDescription);
 
@@ -70,5 +70,13 @@ class NotificationComponents {
 
   void addButton(Button button) {
     _buttons.add(button);
+  }
+
+  void setKeyValue(String key, dynamic value){
+    this.userData[key]=value;
+  }
+
+  dynamic getKeyValue(String key){
+    return this.userData[key];
   }
 }

@@ -69,8 +69,9 @@ Future<void> serviceMain() async {
       initialData.barProgress = i;
 
       //Is it possible to exchange json datas between the foreground and the app
-      //This json data can be put inside {userData}
-      initialData.userData?['progress'] = i;
+      //With key value registers
+      final progress = initialData.getKeyValue("progress") as int;
+      initialData.setKeyValue("progress", progress + 1);
 
       //Send an update from the foreground to the app
       await ServiceClient.update(initialData);
@@ -145,7 +146,7 @@ now you can call `client.execute()` from your app dart-code to start ForegroundS
 
 ```dart
 //You can set userData before the foreground task execution
-client.userData = {"progress": 0};
+client.setKeyValue("progress", 0);
 var result = await client.execute();
 //Returns the userData processed by thee foreground task
 //

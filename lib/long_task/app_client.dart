@@ -102,8 +102,12 @@ class AppClient {
     return _buttonsEventStream.stream;
   }
 
-  set userData(Map<String, dynamic> userData) {
-    this._notificationComponenets.userData = userData;
+  void setKeyValue(String key, dynamic value) {
+    this._notificationComponenets.setKeyValue(key, value);
+  }
+
+  dynamic getKeyValue(String key) {
+    return this._notificationComponenets.getKeyValue(key);
   }
 
   void initProgressBar(int progress, int maximum, bool indeterminate) {

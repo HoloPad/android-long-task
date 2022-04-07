@@ -12,7 +12,6 @@ Future<void> serviceMain() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   ServiceClient.setExecutionCallback((initialData) async {
-
     //{initialData} is the data exchanged between the foreground app and your app
 
     for (var i = 0; i < 100; i++) {
@@ -22,9 +21,10 @@ Future<void> serviceMain() async {
       initialData.notificationDescription = i.toString();
       initialData.barProgress = i;
 
-      //Is it possible to exchange json datas between the foreground and the app
-      //This json data can be put inside {userData}
-      initialData.userData?['progress'] = i;
+      //Is it possible to exchange datas between the foreground task and the app
+      //with general purpose key value registers, use serializable data
+      final progress = initialData.getKeyValue("progress") as int;
+      initialData.setKeyValue("progress", progress + 1);
 
       //Send an update from the foreground to the app
       await ServiceClient.update(initialData);
@@ -125,7 +125,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () async {
                 try {
                   //You can set userData before the foreground task execution
-                  client.userData = {"progress": 0};
+                  client.setKeyValue("progress", 0);
                   var result = await client.execute();
                   //Returns the userData processed by thee foreground task
 
