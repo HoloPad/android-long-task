@@ -12,9 +12,9 @@ class ServiceClient {
   static const _SET_SERVICE_DATA = 'SET_SERVICE_DATA';
   static const _STOP_SERVICE = 'stop_service';
   static const _END_EXECUTION = 'END_EXECUTION';
-  static const BUTTON_PRESSED_EVENT = "onButtonPressed";
-  static var channel = MethodChannel(_CHANNEL_NAME);
-  static Function(String)? clickCallback;
+  static const _BUTTON_PRESSED_EVENT = "onButtonPressed";
+  static var _channel = MethodChannel(_CHANNEL_NAME);
+  static Function(String)? _clickCallback;
 
   /// updates shared [NotificationComponents] and which you can listen for on application side using [AppClient.updates] stream
   ///
@@ -22,7 +22,7 @@ class ServiceClient {
   /// for example if you're downloading a file in you're foreground-service you may want to update the download progress
   /// using this method.
   static Future update(NotificationComponents data) async {
-    await channel.invokeMethod(_SET_SERVICE_DATA, data.toJson());
+    await _channel.invokeMethod(_SET_SERVICE_DATA, data.toJson());
   }
 
   /// set the code you want to run
@@ -30,9 +30,9 @@ class ServiceClient {
   /// you receive the [NotificationComponents] passed in that method as [initialData] in your callback
   static setExecutionCallback(
       Future action(NotificationComponents initialData)) {
-    channel.setMethodCallHandler((call) async {
-      if (call.method == BUTTON_PRESSED_EVENT && clickCallback!=null) {
-        clickCallback!(call.arguments);
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == _BUTTON_PRESSED_EVENT && _clickCallback!=null) {
+        _clickCallback!(call.arguments);
       } else {
         var json = jsonDecode(call.arguments as String);
         var notificationComponents = NotificationComponents.fromJson(json);
@@ -49,17 +49,17 @@ class ServiceClient {
   /// `ServiceClient.endExcution(serviceData)` we can end the execution of foreground-service and also return a [NotificationComponents]
   /// object as a result to application side
   static Future<void> endExecution(NotificationComponents data) async {
-    return channel.invokeMethod(_END_EXECUTION, data.toJson());
+    return _channel.invokeMethod(_END_EXECUTION, data.toJson());
   }
 
   /// stops service immediatly
   static Future<String?> stopService() =>
-      channel.invokeMethod<String?>(_STOP_SERVICE);
+      _channel.invokeMethod<String?>(_STOP_SERVICE);
 
   /// set the code you want to run
   /// when a button is pressed
   /// you receive the [String] passed in that method as [buttonId] in your callback
   static setOnClickCallback(action(String buttonId)) {
-    clickCallback=action;
+    _clickCallback=action;
   }
 }
