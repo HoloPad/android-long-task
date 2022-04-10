@@ -12,7 +12,9 @@ class ServiceClient {
   static const _SET_SERVICE_DATA = 'SET_SERVICE_DATA';
   static const _STOP_SERVICE = 'stop_service';
   static const _END_EXECUTION = 'END_EXECUTION';
+  static const BUTTON_PRESSED_EVENT = "onButtonPressed";
   static var channel = MethodChannel(_CHANNEL_NAME);
+  static Function(String)? clickCallback;
 
   /// updates shared [NotificationComponents] and which you can listen for on application side using [AppClient.updates] stream
   ///
@@ -26,11 +28,16 @@ class ServiceClient {
   /// set the code you want to run
   /// when foreground-service is ordered to start from application side using `AppClient.execute(serviceData)`
   /// you receive the [NotificationComponents] passed in that method as [initialData] in your callback
-  static setExecutionCallback(Future action(NotificationComponents initialData)) {
+  static setExecutionCallback(
+      Future action(NotificationComponents initialData)) {
     channel.setMethodCallHandler((call) async {
-      var json = jsonDecode(call.arguments as String);
-      var notificationComponents = NotificationComponents.fromJson(json);
-      await action(notificationComponents);
+      if (call.method == BUTTON_PRESSED_EVENT && clickCallback!=null) {
+        clickCallback!(call.arguments);
+      } else {
+        var json = jsonDecode(call.arguments as String);
+        var notificationComponents = NotificationComponents.fromJson(json);
+        await action(notificationComponents);
+      }
     });
   }
 
@@ -48,4 +55,11 @@ class ServiceClient {
   /// stops service immediatly
   static Future<String?> stopService() =>
       channel.invokeMethod<String?>(_STOP_SERVICE);
+
+  /// set the code you want to run
+  /// when a button is pressed
+  /// you receive the [String] passed in that method as [buttonId] in your callback
+  static setOnClickCallback(action(String buttonId)) {
+    clickCallback=action;
+  }
 }

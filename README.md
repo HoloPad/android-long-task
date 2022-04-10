@@ -59,6 +59,12 @@ Future<void> serviceMain() async {
 
   ServiceClient.setExecutionCallback((initialData) async {
 
+    //Register the button click callback action
+    ServiceClient.setOnClickCallback((buttonId) async {
+      //Do something when the user click a button from notification
+      await ServiceClient.stopService();
+    });
+
     //{initialData} is the data exchanged between the foreground app and your app
 
     for (var i = 0; i < 100; i++) {

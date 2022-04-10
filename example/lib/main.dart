@@ -14,6 +14,11 @@ Future<void> serviceMain() async {
   ServiceClient.setExecutionCallback((initialData) async {
     //{initialData} is the data exchanged between the foreground app and your app
 
+    ServiceClient.setOnClickCallback((buttonId) async {
+      //Do something when the user click a button from notification
+      await ServiceClient.stopService();
+    });
+
     for (var i = 0; i < 100; i++) {
       print('dart -> $i');
 

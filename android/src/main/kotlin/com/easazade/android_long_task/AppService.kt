@@ -43,6 +43,8 @@ class AppService : Service() {
                     if (action == BUTTON_PRESSED_ACTION) {
                         clickCallback?.let {
                             it(resultData)
+                            channel?.invokeMethod(BUTTON_PRESSED_ACTION,resultData)
+
                         }
                     }
                 }
